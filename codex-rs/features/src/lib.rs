@@ -539,6 +539,32 @@ impl Features {
     }
 
     pub fn enabled(&self, f: Feature) -> bool {
+        // Enterprise privacy is immutable for the custom server, even if config enables these.
+        if codex_http_client::private_runtime_enabled()
+            && matches!(
+                f,
+                Feature::AnalyticsPlanHistory
+                    | Feature::ApiKeyModelDiscovery
+                    | Feature::ApiKeyCyberAccessPrograms
+                    | Feature::RuntimeMetrics
+                    | Feature::Apps
+                    | Feature::EnableMcpApps
+                    | Feature::CodexAppsMcp20260728
+                    | Feature::UseXaa
+                    | Feature::RecommendedPlugins
+                    | Feature::Plugins
+                    | Feature::RemotePlugin
+                    | Feature::PluginSharing
+                    | Feature::ImageGeneration
+                    | Feature::RealtimeConversation
+                    | Feature::RemoteModels
+                    | Feature::RemoteControl
+                    | Feature::InAppDictation
+                    | Feature::InAppVoice
+            )
+        {
+            return false;
+        }
         self.enabled.contains(&f)
     }
 
@@ -718,7 +744,11 @@ impl Features {
     }
 
     pub fn enabled_features(&self) -> Vec<Feature> {
-        self.enabled.iter().copied().collect()
+        self.enabled
+            .iter()
+            .copied()
+            .filter(|feature| self.enabled(*feature))
+            .collect()
     }
 
     pub fn normalize_dependencies(&mut self) {

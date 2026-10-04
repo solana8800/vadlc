@@ -117,6 +117,11 @@ impl RemoteControlRequestProcessor {
     }
 
     fn handle(&self) -> Result<&RemoteControlHandle, JSONRPCErrorError> {
+        if codex_http_client::private_runtime_enabled() {
+            return Err(invalid_request(
+                "remote control is disabled in the private V-ADLC runtime",
+            ));
+        }
         let handle = self
             .remote_control_handle
             .as_ref()

@@ -59,7 +59,7 @@ impl FeedbackRequestProcessor {
         &self,
         params: FeedbackUploadParams,
     ) -> Result<FeedbackUploadResponse, JSONRPCErrorError> {
-        if !self.config.feedback_enabled {
+        if codex_http_client::private_runtime_enabled() || !self.config.feedback_enabled {
             return Err(invalid_request(
                 "sending feedback is disabled by configuration",
             ));

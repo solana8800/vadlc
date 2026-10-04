@@ -614,6 +614,11 @@ impl FeedbackSnapshot {
         options: FeedbackUploadOptions<'_>,
         http_client_factory: &HttpClientFactory,
     ) -> Result<()> {
+        if codex_http_client::private_runtime_enabled() {
+            return Err(anyhow!(
+                "feedback upload is disabled in the private V-ADLC runtime"
+            ));
+        }
         self.upload_feedback_with_dsn(
             options,
             http_client_factory,

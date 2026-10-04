@@ -19,6 +19,9 @@ pub fn build_provider(
     service_name_override: Option<&str>,
     default_analytics_enabled: bool,
 ) -> Result<Option<OtelProvider>, Box<dyn Error>> {
+    if codex_http_client::private_runtime_enabled() {
+        return Ok(None);
+    }
     let to_otel_exporter = |kind: &Kind| match kind {
         Kind::None => OtelExporter::None,
         Kind::Statsig => OtelExporter::Statsig,

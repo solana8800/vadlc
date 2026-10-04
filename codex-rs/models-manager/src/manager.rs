@@ -547,6 +547,9 @@ impl OpenAiModelsManager {
         refresh_strategy: RefreshStrategy,
         http_client_factory: &HttpClientFactory,
     ) -> CoreResult<()> {
+        if codex_http_client::private_runtime_enabled() {
+            return Ok(());
+        }
         let _refresh_guard = self.catalog_source.refresh_lock().await;
         // API-key discovery must be enabled and supported before reusing a remote catalog.
         // Otherwise even a matching cache from an earlier run would bypass bundled-only behavior.

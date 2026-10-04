@@ -1,3 +1,7 @@
+mod private_runtime;
+pub use private_runtime::{
+    check_private_model_destination, initialize_private_runtime, private_runtime_enabled,
+};
 mod chatgpt_cloudflare_cookies;
 mod chatgpt_hosts;
 mod client;

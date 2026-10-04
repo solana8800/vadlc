@@ -1,0 +1,13 @@
+# V-ADLC private agent server
+
+Build the standalone engine with `cargo build -p codex-app-server --bin v-adlc-agent-server` from `codex-rs`. The private target shares upstream helper dispatch and execution/sandbox code; it does not need the CLI/TUI target. Preserve LICENSE and NOTICE in distributions.
+
+Launch `v-adlc-agent-server --listen stdio:// --strict-config --private-model-endpoint http://127.0.0.1:PORT/v1`. Repeat the endpoint flag for selected company model API bases. The normal Codex app-server target remains available for upstream development; V-ADLC must package and select the private target explicitly.
+
+The private target installs an immutable process policy before server startup. There is no environment variable, config switch or RPC that disables it. No endpoint means no model inference. Model provider resolution checks the exact scheme, host, port and Responses route before model transport execution. Public OpenAI/ChatGPT and Anthropic bases cannot be registered here; Claude Enterprise remains a separately selected SDK backend. Plain HTTP is accepted only for an explicit numeric loopback port. Model redirects and Responses WebSockets are disabled.
+
+The following ancillary channels are disabled structurally even if config enables them: analytics event queues, all OTel exporters/runtime metrics, feedback/source/log attachment uploads, OpenAI account login and token refresh, cloud config refresh, remote model catalog refresh, remote control, remote apps/plugin discovery/sharing, image generation and realtime voice. The private user agent is a product/version string without OS, terminal or client metadata. Local session, execution and diagnostic files remain local.
+
+Tool networking, MCP, corporate SSO and HTTP data retrieval are not blocked by this policy. User-selected tools may submit business data. This is a model destination and ancillary-channel privacy policy, not an OS firewall or content DLP. Upstream execution sandbox and ADLC approval policies still apply. The local model bridge and selected model provider are responsible for their own data handling; choosing Claude Enterprise authorizes model input to that provider.
+
+Acceptance: `cargo test -p codex-http-client --lib` validates shared HTTP behavior and the endpoint parser; `cargo test -p codex-app-server --test private_runtime_privacy` checks immutable policy, prohibited entrypoint options, branding, OpenAI login rejection and feedback rejection with opt-in config. Enterprise packet capture, installed desktop, cross-OS distributions and real model/SSO behavior require deployment verification.

@@ -1031,6 +1031,9 @@ impl ModelClient {
     ///
     /// WebSocket use is controlled by provider capability and session-scoped fallback state.
     pub fn responses_websocket_enabled(&self) -> bool {
+        if codex_http_client::private_runtime_enabled() {
+            return false;
+        }
         if !self.state.provider.info().supports_websockets
             || self.state.disable_websockets.load(Ordering::Relaxed)
         {
@@ -1056,7 +1059,7 @@ impl ModelClient {
         loop {
             let revision = auth_changes.as_ref().map(|changes| *changes.borrow());
             let auth = self.state.provider.auth().await;
-            let (api_provider, redirect_policy) = match routing {
+            let (api_provider, mut redirect_policy) = match routing {
                 ClientRouting::Workspace => {
                     let resolved = self
                         .state
@@ -1070,6 +1073,16 @@ impl ModelClient {
                     ClientRedirectPolicy::Default,
                 ),
             };
+            if codex_http_client::private_runtime_enabled() {
+                let destination = url::Url::parse(&api_provider.url_for_path("responses"))
+                    .map_err(|_| std::io::Error::other("invalid private model destination"))?;
+                codex_http_client::check_private_model_destination(&destination).map_err(|_| {
+                    std::io::Error::other(
+                        "model destination is not selected for the private runtime",
+                    )
+                })?;
+                redirect_policy = ClientRedirectPolicy::Reject;
+            }
             let resolved_auth = self
                 .state
                 .provider

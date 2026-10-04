@@ -1628,6 +1628,9 @@ async fn request_chatgpt_token_refresh(
     refresh_token: String,
     client: &HttpClient,
 ) -> Result<RefreshResponse, RefreshTokenError> {
+    if codex_http_client::private_runtime_enabled() {
+        return Err(codex_http_client::NetworkPolicyDenied::UnsupportedTransport.into());
+    }
     let client_id = oauth_client_id();
     let endpoint = refresh_token_endpoint();
     let oauth = OAuthClient::new(

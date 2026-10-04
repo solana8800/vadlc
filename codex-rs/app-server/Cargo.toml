@@ -9,6 +9,10 @@ name = "codex-app-server"
 path = "src/main.rs"
 
 [[bin]]
+name = "v-adlc-agent-server"
+path = "src/bin/v_adlc_agent_server.rs"
+
+[[bin]]
 name = "codex-app-server-test-notify-capture"
 path = "src/bin/notify_capture.rs"
 

@@ -160,6 +160,14 @@ impl AccountRequestProcessor {
         request_id: ConnectionRequestId,
         params: LoginAccountParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
+        if codex_http_client::private_runtime_enabled() {
+            return Err(JSONRPCErrorError {
+                code: -32600,
+                message: "OpenAI account login is unavailable in the private V-ADLC runtime"
+                    .to_string(),
+                data: None,
+            });
+        }
         self.login_v2(request_id, params).await.map(|()| None)
     }
 

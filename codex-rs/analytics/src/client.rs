@@ -316,6 +316,9 @@ impl AnalyticsEventsClient {
         base_url: String,
         analytics_enabled: Option<bool>,
     ) -> Self {
+        if codex_http_client::private_runtime_enabled() {
+            return Self::disabled();
+        }
         let destination = AnalyticsEventsDestination::from_base_url(base_url);
         Self {
             queue: (analytics_enabled != Some(false))

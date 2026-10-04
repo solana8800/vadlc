@@ -150,6 +150,9 @@ pub fn is_first_party_chat_originator(originator_value: &str) -> bool {
 }
 
 pub fn get_codex_user_agent() -> String {
+    if codex_http_client::private_runtime_enabled() {
+        return format!("V-ADLC Agent Server/{}", env!("CARGO_PKG_VERSION"));
+    }
     // OS discovery can spawn subprocesses on Linux. Reuse it across requests,
     // while continuing to read the mutable originator and suffix below.
     static OS_INFO: LazyLock<os_info::Info> = LazyLock::new(os_info::get);
