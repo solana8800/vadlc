@@ -9,7 +9,8 @@ all three targets; do not cherry-pick the old PR #2 global profile override.
 The workflow builds on native macOS ARM64, Ubuntu 22.04 x64 (glibc 2.35 baseline),
 and Windows x64 runners. ADLC on macOS downloads these assets; it never needs
 Rust or a cross compiler. Archives contain exactly one binary, its manifest,
-LICENSE and NOTICE at the archive root. Binary SHA256 and archive SHA256 are
+LICENSE and NOTICE at the archive root. Windows also carries the two upstream-named
+sandbox helpers with individual supportFiles hashes; these are helpers, not Codex CLI. Binary SHA256 and archive SHA256 are
 separate checks. Preserve Apache attribution; branding does not remove licensing.
 
 PR/workflow-dispatch builds upload artifacts only. After review, tag the intended

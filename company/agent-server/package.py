@@ -38,6 +38,16 @@ def package(binary, platform, version, source_commit, out, source_root=ROOT):
     name = 'v-adlc-agent-server' + ('.exe' if platform == 'win32-x64' else '')
     manifest = {'schemaVersion': 1, 'engine': 'v-adlc-agent-server', 'protocol': 'app-server-v2', 'version': version, 'sourceCommit': source_commit,
                 'platforms': {platform: {'file': name, 'sha256': digest(binary)}}}
+    support = ['codex-windows-sandbox-setup.exe', 'codex-command-runner.exe'] if platform == 'win32-x64' else []
+    for file in support:
+        helper = binary.parent / file
+        if helper.is_symlink() or not helper.is_file() or helper.stat().st_size > 200 * 1024 * 1024: raise ValueError('missing Windows sandbox helper')
+        with helper.open('rb') as stream:
+            header = stream.read(64)
+            if len(header) < 64 or header[:2] != b'MZ': raise ValueError('invalid Windows sandbox helper')
+            stream.seek(struct.unpack_from('<I', header, 60)[0])
+            if stream.read(6) != b'PE\0\0\x64\x86': raise ValueError('helper architecture mismatch')
+    if support: manifest['supportFiles'] = {file: digest(binary.parent / file) for file in support}
     out.mkdir(parents=True, exist_ok=True)
     asset = out / f'v-adlc-agent-server-v{version}-{platform}.{"zip" if platform == "win32-x64" else "tar.gz"}'
     with tempfile.TemporaryDirectory() as directory:
@@ -46,7 +56,8 @@ def package(binary, platform, version, source_commit, out, source_root=ROOT):
         shutil.copyfile(binary, stage / name); (stage / name).chmod(0o755)
         for legal in ('LICENSE', 'NOTICE'): shutil.copyfile(source_root / legal, stage / legal)
         (stage / 'runtime-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-        names = [name, 'runtime-manifest.json', 'LICENSE', 'NOTICE']
+        for file in support: shutil.copyfile(binary.parent / file, stage / file)
+        names = [name, 'runtime-manifest.json', 'LICENSE', 'NOTICE', *support]
         if platform == 'win32-x64':
             with zipfile.ZipFile(asset, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
                 for file in names: archive.write(stage / file, file)

@@ -69,6 +69,11 @@ jobs:
         working-directory: codex-rs
         shell: bash
         run: cargo --config ../company/agent-server/release.toml build --locked --profile adlc-release --target '${{ matrix.target }}' -p codex-app-server --bin v-adlc-agent-server
+      - name: Windows sandbox helpers
+        if: runner.os == 'Windows'
+        working-directory: codex-rs
+        shell: bash
+        run: cargo --config ../company/agent-server/release.toml build --locked --profile adlc-release --target x86_64-pc-windows-msvc -p codex-windows-sandbox --bin codex-windows-sandbox-setup --bin codex-command-runner
       - name: Private entrypoint smoke
         shell: bash
         run: python company/agent-server/smoke.py 'codex-rs/target/${{ matrix.target }}/adlc-release/${{ matrix.executable }}'

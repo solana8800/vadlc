@@ -21,12 +21,14 @@ class Contract(unittest.TestCase):
             for platform, header in headers.items():
                 with self.subTest(platform=platform):
                     binary.write_bytes(header)
+                    if platform == 'win32-x64':
+                        for file in ['codex-windows-sandbox-setup.exe','codex-command-runner.exe']:(root/file).write_bytes(header)
                     asset = p.package(binary,platform,'0.2.33','a'*40,root/'out',root)
                     if asset.suffix == '.zip':
                         with zipfile.ZipFile(asset) as z: files={n:z.read(n) for n in z.namelist()}
                     else:
                         with tarfile.open(asset) as z: files={m.name:z.extractfile(m).read() for m in z.getmembers()}
-                    self.assertEqual(len(files),4)
+                    self.assertEqual(len(files),6 if platform == 'win32-x64' else 4)
                     self.assertTrue(all('/' not in name for name in files))
                     manifest=json.loads(files['runtime-manifest.json']); entry=manifest['platforms'][platform]
                     self.assertEqual(hashlib.sha256(files[entry['file']]).hexdigest(),entry['sha256'])
