@@ -59,3 +59,27 @@ make installers
 
 Commit the verified ADLC release lock with the ADLC change. A new vadlc release
 does not automatically replace ADLC's pinned engine.
+
+## Company GitLab distribution
+
+Source and tags stay on GitHub (`solana8800/vadlc`, branch `v-agent-server`).
+`make release-gitlab VERSION=<new-version>` tags the pushed source and runs the
+existing three-OS GitHub Actions matrix. Publication now targets the company
+GitLab distribution project `vsf-qtvhdl/common/engineering/aidlc` (15759):
+
+- Generic package: `v-adlc-agent-server/<version>` (three archives + SHA256SUMS.txt).
+- GitHub source tag: `agent-server-v<version>`; `release-metadata.json` records the exact source commit.
+- No runtime object is added to the ADLC Releases page; Desktop permalink/latest remains Desktop.
+- ADLC Desktop releases keep separate `v-adlc-<version>` tags/packages.
+
+Configure the repository Actions secret `GITLAB_RELEASE_TOKEN` with a narrowly
+scoped company token allowed to publish generic packages on project 15759.
+Do not put credentials in source or URLs. The runner must reach company GitLab;
+if hosted runners cannot, move the publish job to an approved self-hosted runner.
+No new GitHub or ADLC Desktop Release object is created. A failed publication fails the job; inspect it
+before retrying or advancing the ADLC runtime pin.
+
+For importing already verified archives locally:
+`GITLAB_RELEASE_TOKEN=<token> python3 company/agent-server/publish_gitlab.py --directory <archives> --version <version> --source-commit <40-char-sha>`.
+Archives require adjacent `.sha256` files for all three targets. Do not rerun an
+existing release tag with different bytes.
