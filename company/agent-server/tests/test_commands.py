@@ -105,3 +105,8 @@ class CommandsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_DIST13_release_status_reads_company_registry(self):
+        commands.main('release-status')
+        self.assertEqual(self.calls[-1][0], ['glab','api','projects/15759/packages?package_name=v-adlc-agent-server&per_page=5','--hostname','gitlab.vinsmartfuture.tech'])
+        self.assertFalse(any(args[:2]==['gh','release'] for args,_ in self.calls))
