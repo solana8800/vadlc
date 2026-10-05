@@ -6,7 +6,7 @@ export CARGO_BUILD_JOBS ?= 2
 AGENT_COMMAND = "$(PYTHON)" company/agent-server/commands.py
 
 .DEFAULT_GOAL := help
-.PHONY: help build smoke package test build-ci release release-status
+.PHONY: help build smoke package test build-ci release release-gitlab release-status
 help:
 	@$(AGENT_COMMAND) help
 build:
@@ -23,3 +23,6 @@ release:
 	@$(AGENT_COMMAND) release
 release-status:
 	@$(AGENT_COMMAND) release-status
+
+# Source/tag stays on GitHub; CI uploads native packages and release to GitLab.
+release-gitlab: release

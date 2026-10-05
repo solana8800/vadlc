@@ -65,7 +65,7 @@ def main(action):
               "make package VERSION=0.2.34         Build/test/package this OS into dist/agent-server\n"
               "make test                          Run company release contract tests\n"
               "make build-ci VERSION=0.2.34        Build all three OS in CI; artifacts only\n"
-              "make release VERSION=0.2.34         Tag pushed clean v-agent-server; CI publishes all OS\n"
+              "make release VERSION=0.2.34         Tag pushed clean v-agent-server; CI publishes all OS to GitLab\n"
               "make release-status                Show recent native CI runs and releases")
     elif action == "build":
         require_branch()
@@ -105,7 +105,7 @@ def main(action):
             print(f"Queued native release for {head}. Publication completes only after all three CI builds pass.")
     elif action == "release-status":
         run(["gh", "run", "list", "--repo", REPOSITORY, "--workflow", WORKFLOW, "--limit", "5"])
-        run(["gh", "release", "list", "--repo", REPOSITORY, "--limit", "5"])
+        run(["glab", "api", "projects/15759/packages?package_name=v-adlc-agent-server&per_page=5", "--hostname", "gitlab.vinsmartfuture.tech"])
     else:
         raise ValueError("Unknown company command")
 
