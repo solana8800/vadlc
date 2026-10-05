@@ -1,6 +1,9 @@
 # Company runtime release
 
-The private entrypoint already lives on `codex/tuantd26/private-agent-server`.
+The company integration branch is `v-agent-server` (renamed from
+`codex/tuantd26/private-agent-server` without changing its history). Target company
+PRs at this branch, then pull it before a build or release. Upstream `main` stays
+separate for fork synchronization.
 This release layer changes no upstream Rust source or workspace profile. Keep
 `company/agent-server/` and its one workflow as the company-owned overlay when
 rebasing/syncing upstream. Resolve upstream changes first, then build and smoke
@@ -21,3 +24,38 @@ lock, so publishing a release alone does not change an installed application's e
 Local build example (inside codex-rs):
 `cargo --config ../company/agent-server/release.toml build --locked --profile adlc-release -p codex-app-server --bin v-adlc-agent-server`
 Then run `company/agent-server/smoke.py` and `package.py` from the repository root.
+
+## Maintainer Makefile
+
+From the repository root, on `v-agent-server`:
+
+```sh
+make help
+make build                            # Rust toolchain; current OS only
+make smoke                            # No model/network calls
+make package VERSION=0.2.34            # Local archive under dist/agent-server
+make test
+make build-ci VERSION=0.2.34           # gh login; all three OS, artifacts only
+make release VERSION=0.2.34            # New immutable tag; all three OS + release
+make release-status
+```
+
+Use a new version for each release. CI build/release requires a clean checkout
+whose HEAD matches the pushed `origin/v-agent-server`; release refuses existing
+tags. Publication is asynchronous: `make release` queues CI, it does not mean the
+three assets are already available. Check `make release-status` before importing.
+Local Make targets need Python 3 and GNU/BSD make (Windows can use Git Bash with
+make). Cross-platform builds use GitHub's native runners, not cross compilation
+on the Mac. The Makefile only builds the private App Server and Windows sandbox
+helpers, never Codex CLI.
+
+After publication, inside ADLC (Python >=3.10):
+
+```sh
+python3 publish/packaging/pin-agent-server-release.py \
+  --version 0.2.34 --source-commit <full-vadlc-release-commit>
+make installers
+```
+
+Commit the verified ADLC release lock with the ADLC change. A new vadlc release
+does not automatically replace ADLC's pinned engine.

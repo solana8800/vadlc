@@ -3,8 +3,8 @@ on:
   push:
     tags: ['agent-server-v*']
   pull_request:
-    branches: ['codex/tuantd26/private-agent-server']
-    paths: ['company/agent-server/**', '.github/workflows/v-adlc-agent-server.yml']
+    branches: ['v-agent-server']
+    paths: ['Makefile', 'company/agent-server/**', '.github/workflows/v-adlc-agent-server.yml']
   workflow_dispatch:
     inputs:
       version:
