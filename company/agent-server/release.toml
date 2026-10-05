@@ -1,0 +1,8 @@
+# Passed explicitly to Cargo by our release workflow. Upstream profiles stay intact.
+[profile.adlc-release]
+inherits = "release"
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+debug = 0
+strip = "symbols"

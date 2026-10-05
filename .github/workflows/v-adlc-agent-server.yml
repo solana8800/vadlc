@@ -1,0 +1,109 @@
+name: V-ADLC private runtime
+on:
+  push:
+    tags: ['agent-server-v*']
+  pull_request:
+    branches: ['codex/tuantd26/private-agent-server']
+    paths: ['company/agent-server/**', '.github/workflows/v-adlc-agent-server.yml']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Runtime version (build only, publication requires a tag)
+        required: true
+        default: '0.2.33'
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: darwin-arm64
+            target: aarch64-apple-darwin
+            executable: v-adlc-agent-server
+          - os: ubuntu-22.04
+            platform: linux-x64
+            target: x86_64-unknown-linux-gnu
+            executable: v-adlc-agent-server
+          - os: windows-2022
+            platform: win32-x64
+            target: x86_64-pc-windows-msvc
+            executable: v-adlc-agent-server.exe
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_BUILD_JOBS: 2
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Setup pinned repository toolchain
+        shell: bash
+        run: rustup show
+        working-directory: codex-rs
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: codex-rs
+          cache-workspace-crates: true
+          shared-key: adlc-release-${{ matrix.target }}
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Determine and validate version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            VERSION="${GITHUB_REF_NAME#agent-server-v}"
+          else
+            VERSION="${INPUT_VERSION:-0.2.33}"
+          fi
+          python -c 'import re,sys; assert re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?",sys.argv[1])' "$VERSION"
+          echo "AGENT_VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Unit contract tests
+        run: python -m unittest discover -s company/agent-server/tests -v
+      - name: Build only private binary
+        working-directory: codex-rs
+        shell: bash
+        run: cargo --config ../company/agent-server/release.toml build --locked --profile adlc-release --target '${{ matrix.target }}' -p codex-app-server --bin v-adlc-agent-server
+      - name: Windows sandbox helpers
+        if: runner.os == 'Windows'
+        working-directory: codex-rs
+        shell: bash
+        run: cargo --config ../company/agent-server/release.toml build --locked --profile adlc-release --target x86_64-pc-windows-msvc -p codex-windows-sandbox --bin codex-windows-sandbox-setup --bin codex-command-runner
+      - name: Private entrypoint smoke
+        shell: bash
+        run: python company/agent-server/smoke.py
+      - name: Package flat archive and checksum
+        shell: bash
+        run: python company/agent-server/package.py --binary 'codex-rs/target/${{ matrix.target }}/adlc-release/${{ matrix.executable }}' --platform '${{ matrix.platform }}' --version "$AGENT_VERSION" --out dist/agent-server
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agent-server-${{ matrix.platform }}
+          path: dist/agent-server/*
+          if-no-files-found: error
+  publish:
+    if: startsWith(github.ref, 'refs/tags/agent-server-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: agent-server-*
+          path: dist
+          merge-multiple: true
+      - name: Consolidate checksums
+        run: cat dist/*.sha256 > dist/SHA256SUMS.txt
+      - name: Publish exact tag assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$REPOSITORY" --verify-tag --title "V-ADLC agent server $GITHUB_REF_NAME" --generate-notes
