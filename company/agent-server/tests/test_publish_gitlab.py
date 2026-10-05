@@ -4,6 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 import urllib.error
+from unittest import mock
+import json
 
 spec = importlib.util.spec_from_file_location('publish_gitlab', Path(__file__).parents[1] / 'publish_gitlab.py')
 publisher = importlib.util.module_from_spec(spec);spec.loader.exec_module(publisher)
@@ -41,3 +43,20 @@ class PublishTest(unittest.TestCase):
         self.assertIsNone(publisher.NoRedirect().redirect_request(None,None,302,'',{},'https://other.example'))
 
 
+
+
+    def test_DIST11_http_publisher_sends_only_company_urls_and_expected_payloads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);self.assets(root);requests=[]
+            class Response:
+                def __enter__(self):return self
+                def __exit__(self,*args):pass
+                def read(self):return b'{}'
+            class Opener:
+                def open(self, request, timeout):requests.append(request);return Response()
+            with mock.patch.object(publisher.urllib.request,'build_opener',return_value=Opener()):
+                publisher.publish(root,'0.2.34','a'*40,'synthetic')
+            self.assertEqual(len(requests),5)
+            self.assertTrue(all(r.full_url.startswith(publisher.API+'/packages/generic/v-adlc-agent-server/0.2.34/') for r in requests))
+            self.assertTrue(all(r.get_header('Private-token')=='synthetic' and r.method=='PUT' for r in requests))
+            self.assertEqual(json.loads(requests[-1].data)['sourceCommit'],'a'*40)
