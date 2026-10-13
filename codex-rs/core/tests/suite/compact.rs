@@ -1151,8 +1151,12 @@ async fn reasoning_effort_override_remote_v2_compaction_resets_pinned_effort(
     Ok(())
 }
 
+#[test_case::test_case(json!({"input_tokens": 120_000, "output_tokens": 30_000, "total_tokens": 150_000}); "reported_usage")]
+#[test_case::test_case(Value::Null; "missing_usage")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn incomplete_response_during_compaction_is_terminal() -> Result<()> {
+async fn incomplete_response_during_compaction_is_terminal_and_counted(
+    reported_usage: Value,
+) -> Result<()> {
     skip_if_no_network!(Ok(()));
     for (provider, expected_error) in [
         (
@@ -1178,7 +1182,8 @@ async fn incomplete_response_during_compaction_is_terminal() -> Result<()> {
                     "type": "response.incomplete",
                     "response": {
                         "id": "incomplete-compaction",
-                        "incomplete_details": {"reason": "max_output_tokens"}
+                        "incomplete_details": {"reason": "max_output_tokens"},
+                        "usage": reported_usage
                     }
                 })]),
             ],
@@ -1243,6 +1248,19 @@ async fn incomplete_response_during_compaction_is_terminal() -> Result<()> {
         })
         .await;
         assert_eq!(errors, vec![expected_error]);
+        assert_eq!(
+            test.codex
+                .token_usage_info()
+                .await
+                .expect("partial usage")
+                .total_token_usage
+                .total_tokens,
+            if reported_usage.is_null() {
+                120_000
+            } else {
+                270_000
+            },
+        );
         assert_eq!(
             response_mock
                 .requests()

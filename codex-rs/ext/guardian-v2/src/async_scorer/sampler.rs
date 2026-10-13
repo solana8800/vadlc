@@ -3,6 +3,7 @@
 
 mod connection_pool;
 mod execution;
+mod response;
 
 use super::request::PreparedRequest;
 use connection_pool::ConnectionPool;

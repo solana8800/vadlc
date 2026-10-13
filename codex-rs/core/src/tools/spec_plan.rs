@@ -733,8 +733,9 @@ fn collab_tools_enabled(turn_context: &TurnContext, model_info: &ModelInfo) -> b
             turn_context.config.agent_max_depth,
         ),
         MultiAgentVersion::V2 => {
-            turn_context.session_source.get_agent_path().is_none()
-                || model_info.multi_agent_version == Some(MultiAgentVersion::V2)
+            !turn_context.config.multi_agent_v2.disable_native_tools
+                && (turn_context.session_source.get_agent_path().is_none()
+                    || model_info.multi_agent_version == Some(MultiAgentVersion::V2))
         }
     }
 }

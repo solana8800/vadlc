@@ -184,7 +184,7 @@ pub(super) fn record_decisions_comparison_outcome(
 // Keep all backend diagnostics bounded and free of raw transport data.
 pub(super) fn decisions_failure_reason(error: DecisionsError) -> &'static str {
     match error {
-        DecisionsError::Credentials => "provider_error",
+        DecisionsError::Credentials => "credentials_unavailable",
         DecisionsError::ClientSetup => "request_build_error",
         DecisionsError::UnsupportedEvidence => "decisions_unsupported_evidence",
         DecisionsError::InputTooLarge => "input_too_large",

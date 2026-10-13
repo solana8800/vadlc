@@ -1,9 +1,12 @@
+use super::super::startup::decisions_api_key;
 use super::*;
 use codex_context_fragments::AnnotatedContent;
 use codex_context_fragments::ContextualUserFragment;
 use codex_guardian_context::TrustedTool;
 use codex_guardian_context::TrustedToolSource;
 use codex_http_client::HttpClientBuilder;
+use codex_login::AuthManager;
+use codex_login::CodexAuth;
 use codex_protocol::models::ContentItemKind;
 use pretty_assertions::assert_eq;
 use wiremock::Mock;
@@ -154,6 +157,60 @@ async fn decisions_key_lookup_honors_override_or_reloaded_login() {
         (default, custom_url) == expected,
         "the Guardian override must win, or only the default provider may use the reloaded key"
     );
+}
+
+#[test]
+fn decisions_prefers_cached_api_key_over_openai_env() -> anyhow::Result<()> {
+    // Bazel runs tests in a shared process. Set keys only in a child so other tests cannot see them.
+    if std::env::var_os("CODEX_GUARDIAN_DECISIONS_TEST_CHILD").is_none() {
+        let output = std::process::Command::new(std::env::current_exe()?)
+            .args(["--exact", std::thread::current().name().unwrap()])
+            .env("CODEX_GUARDIAN_DECISIONS_TEST_CHILD", "1")
+            .env_remove("CODEX_GUARDIAN_DECISIONS_API_KEY")
+            .env("OPENAI_API_KEY", "synthetic-env-key")
+            .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("1 passed"),
+            "{stdout}{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return Ok(());
+    }
+    let auth_key = "synthetic-auth-key";
+    let cached = AuthManager::from_auth_for_testing(CodexAuth::from_api_key(auth_key));
+    assert!(
+        decisions_api_key("openai", /*base_url*/ None, &cached) == Ok(auth_key.into()),
+        "cached API-key auth must take priority over OPENAI_API_KEY"
+    );
+    Ok(())
+}
+
+#[test]
+fn decisions_falls_back_to_openai_env_key() -> anyhow::Result<()> {
+    let env_key = "synthetic-env-key";
+    if std::env::var_os("CODEX_GUARDIAN_DECISIONS_TEST_CHILD").is_none() {
+        let output = std::process::Command::new(std::env::current_exe()?)
+            .args(["--exact", std::thread::current().name().unwrap()])
+            .env("CODEX_GUARDIAN_DECISIONS_TEST_CHILD", "1")
+            .env_remove("CODEX_GUARDIAN_DECISIONS_API_KEY")
+            .env("OPENAI_API_KEY", env_key)
+            .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("1 passed"),
+            "{stdout}{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return Ok(());
+    }
+    let chatgpt =
+        AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    assert!(
+        decisions_api_key("openai", /*base_url*/ None, &chatgpt) == Ok(env_key.into()),
+        "use OPENAI_API_KEY when neither a Guardian key nor a cached API key is available"
+    );
+    Ok(())
 }
 
 #[tokio::test]

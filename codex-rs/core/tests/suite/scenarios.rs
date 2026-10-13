@@ -16,9 +16,12 @@ use codex_config::ConfigLayerStack;
 use codex_config::types::McpServerConfig;
 use codex_context_fragments::AnsweredQuestion;
 use codex_context_fragments::ContextualUserFragment;
+use codex_core::ForkSnapshot;
 use codex_core::StartThreadOptions;
 use codex_core::TurnInputRequest;
+use codex_core::compact::AutoCompactionDisabled;
 use codex_core::config::Config;
+use codex_core::config::TokenBudgetConfig;
 use codex_exec_server::CreateDirectoryOptions;
 use codex_exec_server::EnvironmentManager;
 use codex_exec_server::LOCAL_ENVIRONMENT_ID;
@@ -63,6 +66,7 @@ use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::SnapshotEntry;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_completed_with_tokens;
 use core_test_support::responses::ev_custom_tool_call;
 use core_test_support::responses::ev_function_call_with_namespace;
 use core_test_support::responses::ev_message_item_added;
@@ -1097,14 +1101,17 @@ async fn astra_omits_disabled_executor_and_plugin_skills_from_model_context(
     Ok(())
 }
 
+#[test_case::test_case(false; "native_tools")]
+#[test_case::test_case(true; "host_tools")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn multi_agent_catalog_parameters() -> Result<()> {
+async fn multi_agent_catalog_parameters(disable_native_tools: bool) -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
     let test = test_codex()
-        .with_config(|config| {
+        .with_config(move |config| {
             configure_scenario_catalog(config);
+            config.multi_agent_v2.disable_native_tools = disable_native_tools;
             config.workspace_roots = vec![config.cwd.clone()];
         })
         .with_model_info_override("gpt-6-astra", |model| {
@@ -1149,10 +1156,25 @@ async fn multi_agent_catalog_parameters() -> Result<()> {
     .await;
     test.submit_turn("Check which agents are working under /root before delegating more work.")
         .await?;
-    insta::assert_snapshot!(
-        "multi_agent_catalog_parameters",
-        context_snapshot::format_request_history_snapshot(
+    assert_eq!(
+        test.codex.multi_agent_version(),
+        Some(codex_protocol::protocol::MultiAgentVersion::V2)
+    );
+    let (name, description) = if disable_native_tools {
+        (
+            "multi_agent_native_tools_hidden",
+            "Native tools are unavailable while the V2 runtime and its instructions remain enabled.",
+        )
+    } else {
+        (
+            "multi_agent_catalog_parameters",
             "Astra calls list_agents using the selected catalog parameter schema.",
+        )
+    };
+    insta::assert_snapshot!(
+        name,
+        context_snapshot::format_request_history_snapshot(
+            description,
             &mock.requests(),
             &ContextSnapshotOptions::default().include_request_settings(),
         )
@@ -1997,6 +2019,82 @@ async fn prediction_fork_inherits_parent_context() -> Result<()> {
     let requests = super::reasoning_effort_override::prediction_fork_requests().await?;
     insta::assert_snapshot!(context_snapshot::format_request_history_snapshot(
         "A parent pins high request effort, then selects low. Its ephemeral prediction fork inherits the context and baseline, then selects medium on its first turn. Continuing the parent at medium produces the same request.",
+        &requests,
+        &ContextSnapshotOptions::default().include_request_settings(),
+    ));
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn prediction_fork_preserves_context_above_compaction_threshold() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = start_mock_server().await;
+    let mock = mount_sse_sequence(
+        &server,
+        vec![
+            sse(vec![
+                ev_assistant_message("parent", "The release is ready for validation."),
+                ev_completed_with_tokens("parent", /*total_tokens*/ 70_000),
+            ]),
+            sse(vec![
+                ev_function_call_with_namespace(
+                    "remaining",
+                    "functions",
+                    "get_context_remaining",
+                    "{}",
+                ),
+                ev_completed_with_tokens("tool", /*total_tokens*/ 70_000),
+            ]),
+            sse(vec![
+                ev_assistant_message("prediction", "Run the release checks."),
+                ev_completed_with_tokens("prediction", /*total_tokens*/ 70_000),
+            ]),
+        ],
+    )
+    .await;
+    let mut test = test_codex()
+        .with_model("gpt-6-astra")
+        .with_config(|config| {
+            configure_scenario_catalog(config);
+            config.workspace_roots = vec![config.cwd.clone()];
+            config.model_auto_compact_token_limit = Some(50_000);
+            config
+                .features
+                .enable(Feature::TokenBudget)
+                .expect("enable token budget");
+            config.token_budget = Some(TokenBudgetConfig {
+                reminder_threshold_tokens: Some(2_000),
+                ..TokenBudgetConfig::default()
+            });
+        })
+        .build_with_auto_env(&server)
+        .await?;
+
+    test.submit_turn("Prepare the release.").await?;
+    test.codex.flush_rollout().await?;
+    let (mut options, settings) = test
+        .thread_manager
+        .fork_options_from_parent(test.session_configured.thread_id)
+        .await?;
+    options.config.ephemeral = true;
+    options.thread_extension_init.insert(AutoCompactionDisabled);
+    let child = test
+        .thread_manager
+        .fork_legacy_thread(
+            ForkSnapshot::Interrupted,
+            options,
+            test.codex.rollout_path().expect("parent rollout path"),
+        )
+        .await?;
+    child.thread.restore_thread_settings(settings).await?;
+    test.codex = child.thread;
+    test.submit_turn("Suggest my next message.").await?;
+
+    let requests = mock.requests();
+    assert_eq!(requests.len(), 3);
+    insta::assert_snapshot!(context_snapshot::format_request_history_snapshot(
+        "The parent finishes above the compaction threshold. Its prediction fork retains the parent's context and reminder, but neither compacts nor adds another reminder after a tool call.",
         &requests,
         &ContextSnapshotOptions::default().include_request_settings(),
     ));

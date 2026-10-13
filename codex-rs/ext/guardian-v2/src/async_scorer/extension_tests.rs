@@ -2477,7 +2477,7 @@ async fn contributor_skips_required_models_in_standard_scope() -> Result<()> {
     let oversized_compaction = ResponseItem::Compaction {
         id: Some(ResponseItemId::from_server("cmp_oversized".to_owned())),
         encrypted_content: "a"
-            .repeat(TruncationPolicy::Tokens(DEFAULT_PARENT_COMPACTION_TOKENS).byte_budget()),
+            .repeat(3 * TruncationPolicy::Tokens(DEFAULT_PARENT_COMPACTION_TOKENS).byte_budget()),
         internal_chat_message_metadata_passthrough: None,
     };
     registry.tool_lifecycle_contributors()[0]
@@ -3386,7 +3386,7 @@ async fn assert_parent_compaction_reuse(parent_context_for_review: bool) -> Resu
 
     let oversized_compaction = ResponseItem::Compaction {
         id: Some(ResponseItemId::from_server("cmp_oversized".to_owned())),
-        encrypted_content: "a".repeat(TruncationPolicy::Tokens(/*limit*/ 256).byte_budget()),
+        encrypted_content: "a".repeat(3 * TruncationPolicy::Tokens(/*limit*/ 256).byte_budget()),
         internal_chat_message_metadata_passthrough: None,
     };
     let mut rejected_compactions = vec![(oversized_compaction, "parent_compaction_oversized")];

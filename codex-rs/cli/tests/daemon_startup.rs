@@ -175,7 +175,7 @@ async fn daemon_startup(command: &str) -> Result<()> {
          notice.model_migrations.\"gpt-5.6-terra\" = \"gpt-6-sol\"\n\
          [projects.{}]\ntrust_level = \"trusted\"\n",
             if command == "discovered" {
-                "tui.status_line=[\"model\",\"thread-id\"]"
+                "tui.status_line=[\"model\",\"thread-id\",\"thread-name\"]"
             } else {
                 ""
             },
@@ -275,7 +275,10 @@ async fn daemon_startup(command: &str) -> Result<()> {
             "Restartbackgroundserver?"
         } else if command == "discovered" {
             args.extend(["--disable".into(), "daemon_auto_start".into()]);
-            steps.push_back(("GPT-5.6-Terra", b"/daemon\r"));
+            // Empty drafts need not survive a daemon restart. Renaming materializes the
+            // thread; wait for the confirmed footer name, not the echoed command.
+            steps.push_back(("GPT-5.6-Terra", b"/rename daemon-restart-test\r"));
+            steps.push_back(("·daemon-restart-test", b"/daemon\r"));
             steps.push_back(("Restartbackgroundserver", b"2"));
             steps.push_back(("Restartbackgroundserver?", b"2\r"));
             steps.push_back(("GPT-5.6-Terra", b"/status\r"));

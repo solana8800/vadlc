@@ -206,6 +206,7 @@ async fn daybreak_command_persists_and_confirms_each_selection() -> Result<()> {
     app.chat_widget
         .set_feature_enabled(Feature::CliDaybreak, /*enabled*/ true);
     app.chat_widget.set_daybreak_enabled(/*enabled*/ true);
+    let models = app.chat_widget.model_catalog().models.clone();
     app.chat_widget.update_account_state(
         Some(crate::status::StatusAccountDisplay::ApiKey),
         /*plan_type*/ None,
@@ -213,6 +214,14 @@ async fn daybreak_command_persists_and_confirms_each_selection() -> Result<()> {
         /*has_codex_backend_auth*/ false,
     );
     assert!(!app.chat_widget.daybreak_enabled);
+    let request_id = std::iter::from_fn(|| events.try_recv().ok())
+        .filter_map(|event| match event {
+            AppEvent::FetchModels { request_id } => Some(request_id),
+            _ => None,
+        })
+        .last()
+        .expect("account model refresh");
+    assert!(app.chat_widget.on_models_loaded(request_id, Ok(models)));
     for (cli_daybreak, api_key_cyber_access_programs, enabled) in [
         (false, false, true),
         (false, true, true),
