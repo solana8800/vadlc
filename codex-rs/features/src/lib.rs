@@ -117,11 +117,15 @@ pub enum Feature {
 
     /// Automatically start the shared local daemon for eligible interactive launches.
     DaemonAutoStart,
+    /// Enable negotiated zstd compression for app-server WebSocket and UDS connections.
+    AppServerWebSocketCompression,
 
     // Experimental
     /// Advertise enabled environment-backed tools and their shell parameters before the
     /// executor is ready. Actual execution still requires a usable environment and its policy.
     StableEnvironmentTools,
+    /// Copy files between explicitly selected execution environments.
+    MultiEnvCopyFile,
     /// Send per-content-entry classifications in internal Responses metadata.
     ContentItemKinds,
     /// Record model-attempted tool calls in internal Responses metadata.
@@ -214,7 +218,7 @@ pub enum Feature {
     NetworkProxy,
     /// Mask credentials and inject them through an already enabled network proxy.
     CredentialMasking,
-    /// Enable managed worktree creation and repository-aware sessions.
+    /// Removed compatibility flag. Managed worktrees and repository-aware sessions are always available.
     Worktrees,
     /// Respect host system proxy settings for Codex-owned network clients.
     RespectSystemProxy,
@@ -233,6 +237,8 @@ pub enum Feature {
     /// Keep sampling through reasoning and commentary boundaries when agent mail arrives.
     /// Pending mail is delivered at the next normal input boundary instead.
     DeferMailboxPreemption,
+    /// Allow agent messages to wake idle root sessions after a completed turn.
+    WakeOnAgentMessages,
     /// Preempt responses and yield foreground code-mode observations on new user input.
     InstantInterrupt,
     /// Enable shared discussion tools for an agent tree.
@@ -249,6 +255,8 @@ pub enum Feature {
     EnableMcpApps,
     /// Enable MCP protocol version 2026-07-28 support.
     Mcp20260728,
+    /// Honor ordinary MCP server tool-list notifications within a turn.
+    McpToolListChanged,
     /// Enable MCP protocol version 2026-07-28 for the host-owned Codex Apps server.
     CodexAppsMcp20260728,
     /// Let RMCP coordinate OAuth refresh through the configured credential store.
@@ -275,6 +283,8 @@ pub enum Feature {
     Plugins,
     /// Discover selected-root plugin and skill manifests through one high-level exec-server RPC.
     ExecutorCapabilityDiscovery,
+    /// Acquire V2 executor inventories without publishing or activating their capabilities.
+    ExecutorCapabilityDiscoveryV2,
     /// Skip host skill snapshots when no registered contributor requires them.
     SkipHostSkillDiscovery,
     /// Removed compatibility flag for plugin-bundled lifecycle hooks.
@@ -414,7 +424,7 @@ pub enum Feature {
     UltrafastMode,
     /// Enable explicitly requested model changes for later step captures.
     StepModelSwitching,
-    /// Enable voice conversations in the TUI.
+    /// Removed compatibility flag. TUI voice availability follows platform support.
     RealtimeConversation,
     /// Prevent idle system sleep while a turn is actively running.
     PreventIdleSleep,
@@ -691,7 +701,7 @@ impl Features {
                     self.record_legacy_usage_force("features.transcript_v2", Feature::TranscriptV2);
                     continue;
                 }
-                "tui_app_server" => {
+                "tui_app_server" | "worktrees" | "realtime_conversation" => {
                     continue;
                 }
                 "undo" => {
@@ -1062,6 +1072,12 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: true,
     },
     FeatureSpec {
+        id: Feature::AppServerWebSocketCompression,
+        key: "app_server_websocket_compression",
+        stage: Stage::UnderDevelopment,
+        default_enabled: false,
+    },
+    FeatureSpec {
         id: Feature::TranscriptV2,
         key: "transcript_v2",
         stage: Stage::Deprecated,
@@ -1085,6 +1101,12 @@ pub const FEATURES: &[FeatureSpec] = &[
         key: "view_image",
         stage: Stage::Stable,
         default_enabled: true,
+    },
+    FeatureSpec {
+        id: Feature::MultiEnvCopyFile,
+        key: "multi_env_copy_file",
+        stage: Stage::UnderDevelopment,
+        default_enabled: false,
     },
     FeatureSpec {
         id: Feature::SleepTool,
@@ -1183,7 +1205,7 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::StableEnvironmentTools,
         key: "stable_environment_tools",
-        stage: Stage::UnderDevelopment,
+        stage: Stage::Removed,
         default_enabled: false,
     },
     FeatureSpec {
@@ -1441,14 +1463,14 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::CliDaybreak,
         key: "cli_daybreak",
-        stage: Stage::UnderDevelopment,
-        default_enabled: false,
+        stage: Stage::Stable,
+        default_enabled: true,
     },
     FeatureSpec {
         id: Feature::ApiKeyCyberAccessPrograms,
         key: "api_key_cyber_access_programs",
         stage: Stage::Stable,
-        default_enabled: false,
+        default_enabled: true,
     },
     FeatureSpec {
         id: Feature::EnableRequestCompression,
@@ -1481,7 +1503,7 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::Worktrees,
         key: "worktrees",
-        stage: Stage::Stable,
+        stage: Stage::Removed,
         default_enabled: true,
     },
     FeatureSpec {
@@ -1533,6 +1555,12 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: false,
     },
     FeatureSpec {
+        id: Feature::WakeOnAgentMessages,
+        key: "wake_on_agent_messages",
+        stage: Stage::UnderDevelopment,
+        default_enabled: false,
+    },
+    FeatureSpec {
         id: Feature::AgentMessageBoard,
         key: "agent_message_board",
         stage: Stage::UnderDevelopment,
@@ -1571,6 +1599,12 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::Mcp20260728,
         key: "mcp_2026_07_28",
+        stage: Stage::UnderDevelopment,
+        default_enabled: false,
+    },
+    FeatureSpec {
+        id: Feature::McpToolListChanged,
+        key: "mcp_tool_list_changed",
         stage: Stage::UnderDevelopment,
         default_enabled: false,
     },
@@ -1655,6 +1689,12 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::ExecutorCapabilityDiscovery,
         key: "executor_capability_discovery",
+        stage: Stage::UnderDevelopment,
+        default_enabled: false,
+    },
+    FeatureSpec {
+        id: Feature::ExecutorCapabilityDiscoveryV2,
+        key: "executor_capability_discovery_v2",
         stage: Stage::UnderDevelopment,
         default_enabled: false,
     },
@@ -2021,7 +2061,7 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::RealtimeConversation,
         key: "realtime_conversation",
-        stage: Stage::Stable,
+        stage: Stage::Removed,
         default_enabled: true,
     },
     FeatureSpec {

@@ -1,6 +1,6 @@
 //! Executes one prepared classifier request with the existing retry and streaming rules.
-//! Snapshot output returns immediately with a detached drain. Retained requests publish
-//! the same early result but keep ownership until completion to capture reusable output.
+//! Snapshot output returns immediately with a detached drain that retains cancellation.
+//! Retained requests publish the same early result but keep ownership through completion.
 //! Requests and retries stop when the account owner that started the classification changes.
 //! Dropped responses interrupt and drain before their transport can return to the pool.
 
@@ -25,6 +25,8 @@ use codex_protocol::turn_input::CyberAccessProgram;
 use http::StatusCode;
 use serde_json::json;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -57,7 +59,7 @@ pub(super) struct RetainedCompletion {
 /// Snapshot admission owns supersession; retained admission owns the response through completion.
 pub(super) enum SamplingMode<'a> {
     Snapshot {
-        superseded: oneshot::Receiver<()>,
+        superseded: Pin<Box<dyn Future<Output = ()> + Send>>,
         scored: Arc<AtomicBool>,
     },
     Retained(&'a mut RetainedCompletion),
@@ -67,7 +69,7 @@ impl SamplingMode<'_> {
     async fn superseded(&mut self) {
         match self {
             Self::Snapshot { superseded, .. } => {
-                let _ = superseded.await;
+                superseded.await;
             }
             Self::Retained(_) => std::future::pending().await,
         }
