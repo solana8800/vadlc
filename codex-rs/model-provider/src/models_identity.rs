@@ -10,12 +10,20 @@ use sha2::Digest;
 use sha2::Sha256;
 
 use crate::auth::resolve_provider_auth;
+use crate::provider::resolve_api_provider;
 
 pub(crate) fn identity(
     provider_info: &ModelProviderInfo,
     auth: Option<&CodexAuth>,
 ) -> CoreResult<String> {
-    let mut api_provider = provider_info.to_api_provider(auth.map(CodexAuth::auth_mode))?;
+    // Provider bearer overrides replace the login credential and its account metadata.
+    let auth =
+        if provider_info.env_key.is_some() || provider_info.experimental_bearer_token.is_some() {
+            None
+        } else {
+            auth
+        };
+    let mut api_provider = resolve_api_provider(provider_info, auth)?;
     let mut digest = Sha256::new();
     // Length-prefix every field to avoid ambiguity between adjacent values.
     let mut field = |value: &[u8]| {
@@ -76,7 +84,9 @@ pub(crate) fn identity(
     // different account, so reuse requires stable owner metadata. Explicit provider
     // keys take precedence over the header auth's account identity.
     if !has_stable_account || explicit_bearer {
-        let headers = resolve_provider_auth(auth, provider_info)?.to_auth_headers();
+        let headers = resolve_provider_auth(auth, provider_info)?
+            .to_auth_headers()
+            .map_err(|error| codex_api::map_api_error(error.into()))?;
         api_provider.headers.extend(headers);
     }
     let mut headers: Vec<_> = api_provider.headers.iter().collect();
