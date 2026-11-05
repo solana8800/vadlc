@@ -72,9 +72,8 @@ struct PreparedWindowsSandboxRequest {
 impl PreparedExecRequest {
     #[cfg(unix)]
     pub(crate) fn credential_snapshot_proxy(&self, params: &ExecParams) -> Option<&NetworkProxy> {
-        if !params.network_proxy.as_ref()?.proxy.credential_masking
-            || !supports_credential_snapshot(params)
-        {
+        let launch = params.network_proxy.as_ref()?;
+        if !launch.proxy.credential_masking_enabled() || !supports_credential_snapshot(params) {
             return None;
         }
         self.network_proxy_handle.as_ref()?.proxy()
@@ -312,6 +311,7 @@ pub(crate) async fn prepare_exec_request_with_telemetry(
                 additional_permissions: None,
             },
             permissions: &permissions,
+            workspace_roots: None,
             sandbox,
             enforce_managed_network: params.enforce_managed_network,
             environment_id: None,

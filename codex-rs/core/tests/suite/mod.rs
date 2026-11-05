@@ -43,6 +43,7 @@ mod additional_context;
 #[path = "agent_control_tests.rs"]
 mod agent_control;
 mod agent_execution;
+mod agent_message_wake;
 mod agent_websocket;
 mod agents_md;
 mod app_tool_exposure;
@@ -52,6 +53,7 @@ mod apply_patch_serialization;
 mod apply_patch_system_aliases;
 #[cfg(not(target_os = "windows"))]
 mod approvals;
+mod audio_duration_store;
 mod audio_truncation;
 mod auth_recovery_policy;
 mod auto_review;
@@ -88,6 +90,7 @@ mod exec_policy;
 mod extension_sandbox;
 mod external_auth;
 mod fork_thread;
+mod gcp;
 mod git_enrichment;
 mod guardian_authorization;
 mod guardian_authorization_refresh;
@@ -96,7 +99,9 @@ mod guardian_cached_score;
 #[path = "guardian_checkpoint_migration_tests.rs"]
 mod guardian_checkpoint_migration;
 // Uses the same command-approval harness as guardian_review below.
+mod builtin_model_catalog;
 mod canonical_plugin_connectors;
+mod critical_path_runtime;
 mod gateway_auth;
 mod guardian_connector_trust;
 #[cfg(not(target_os = "windows"))]
@@ -204,6 +209,7 @@ mod rmcp_client;
 mod rollout_budget;
 mod rollout_compression;
 mod rollout_list_find;
+mod runtime_auth;
 mod safety_buffering;
 mod safety_check_downgrade;
 mod scenarios;

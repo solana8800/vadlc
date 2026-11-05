@@ -11,6 +11,7 @@ pub(super) async fn try_submit_user_turn(
     op: &AppCommand,
 ) -> Result<bool> {
     let AppCommand::UserTurn {
+        turn_trigger,
         client_user_message_id,
         items,
         cwd,
@@ -28,6 +29,9 @@ pub(super) async fn try_submit_user_turn(
         return Ok(false);
     };
     if let Some(turn_id) = app.active_turn_id_for_thread(thread_id).await {
+        if *turn_trigger != "user" {
+            color_eyre::eyre::bail!("the fork already has an active turn");
+        }
         let mut steer_turn_id = turn_id;
         let mut retried_after_turn_mismatch = false;
         loop {
@@ -116,6 +120,7 @@ pub(super) async fn try_submit_user_turn(
     });
     let selected_active =
         selected_profile.map(|profile| ActivePermissionProfile::new(profile.profile_id.clone()));
+    // Ordinary turns inherit the server reviewer; echoing its effective value loses the request.
     let (turn_approval_policy, turn_approvals_reviewer) = if let Some(profile) = selected_profile {
         (
             profile.approval_policy,
@@ -126,17 +131,10 @@ pub(super) async fn try_submit_user_turn(
     {
         (
             Some(config.permissions.approval_policy.value().into()),
-            Some(config.approvals_reviewer.into()),
+            approvals_reviewer.map(Into::into),
         )
     } else {
-        (
-            Some(*approval_policy),
-            Some(
-                approvals_reviewer
-                    .unwrap_or(config.approvals_reviewer)
-                    .into(),
-            ),
-        )
+        (Some(*approval_policy), approvals_reviewer.map(Into::into))
     };
     // Only explicit choices may override the saved server profile.
     let explicit_profile = app
@@ -155,6 +153,7 @@ pub(super) async fn try_submit_user_turn(
     let response = app_server
         .turn_start(
             thread_id,
+            turn_trigger,
             client_user_message_id.clone(),
             items.to_vec(),
             cwd.clone(),
