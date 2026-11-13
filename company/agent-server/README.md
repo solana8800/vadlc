@@ -100,3 +100,10 @@ It uploads the archive and `SHA256SUMS.txt` with one line appended; existing arc
 `release-metadata.json` are left alone, and a platform already listed is refused (published bytes are never
 replaced). ADLC then pins the new archive and binary SHA-256 in its release lock.
 
+## Where releases go
+
+Releases are published to the package registry of `vsf-qtvhdl/bzz/factory/factory.platform` (project 27062),
+package `v-adlc-agent-server`; that repository pins them in `publish/packaging/agent-server-release.json`. The
+GitHub secret `GITLAB_RELEASE_TOKEN` needs Developer access to that project. Versions up to 1.0.13 were first
+published to `vsf-qtvhdl/common/engineering/aidlc` (project 15759) and were copied byte-for-byte.
+

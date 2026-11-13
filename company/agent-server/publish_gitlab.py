@@ -8,7 +8,9 @@ import re
 import urllib.error
 import urllib.request
 
-API = 'https://gitlab.vinsmartfuture.tech/api/v4/projects/15759'
+# Bzz Factory's own package registry (vsf-qtvhdl/bzz/factory/factory.platform), which builds the Factory image and the
+# ADLC desktop installers from these assets; its CI reads them with its own job token.
+API = 'https://gitlab.vinsmartfuture.tech/api/v4/projects/27062'
 PLATFORMS = [('darwin-arm64', 'tar.gz'), ('linux-x64', 'tar.gz'), ('linux-arm64', 'tar.gz'), ('win32-x64', 'zip')]
 
 
