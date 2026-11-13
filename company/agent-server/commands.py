@@ -34,6 +34,7 @@ def native_target():
     key = (sys.platform, platform.machine().lower())
     targets = {("darwin", "arm64"): ("darwin-arm64", "aarch64-apple-darwin"),
                ("linux", "x86_64"): ("linux-x64", "x86_64-unknown-linux-gnu"),
+               ("linux", "aarch64"): ("linux-arm64", "aarch64-unknown-linux-gnu"),
                ("win32", "amd64"): ("win32-x64", "x86_64-pc-windows-msvc"),
                ("win32", "x86_64"): ("win32-x64", "x86_64-pc-windows-msvc")}
     if key not in targets:
@@ -64,7 +65,7 @@ def main(action):
               "make smoke                         Check private policy and stdio initialize\n"
               "make package VERSION=0.2.34         Build/test/package this OS into dist/agent-server\n"
               "make test                          Run company release contract tests\n"
-              "make build-ci VERSION=0.2.34        Build all three OS in CI; artifacts only\n"
+              "make build-ci VERSION=0.2.34        Build all four targets in CI; artifacts only\n"
               "make release VERSION=0.2.34         Tag pushed clean v-agent-server; CI publishes all OS to GitLab\n"
               "make release-status                Show recent native CI runs and releases")
     elif action == "build":
@@ -102,7 +103,7 @@ def main(action):
                 raise ValueError("Release tag already exists; choose a new VERSION")
             run(["git", "tag", "-a", tag, head, "-m", f"V-ADLC agent server {release_version}"])
             run(["git", "push", "origin", f"refs/tags/{tag}"])
-            print(f"Queued native release for {head}. Publication completes only after all three CI builds pass.")
+            print(f"Queued native release for {head}. Publication completes only after all four CI builds pass.")
     elif action == "release-status":
         run(["gh", "run", "list", "--repo", REPOSITORY, "--workflow", WORKFLOW, "--limit", "5"])
         run(["glab", "api", "projects/15759/packages?package_name=v-adlc-agent-server&per_page=5", "--hostname", "gitlab.vinsmartfuture.tech"])

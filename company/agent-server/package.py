@@ -11,7 +11,8 @@ import tempfile
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-TARGETS = {'darwin-arm64': 'aarch64-apple-darwin', 'linux-x64': 'x86_64-unknown-linux-gnu', 'win32-x64': 'x86_64-pc-windows-msvc'}
+TARGETS = {'darwin-arm64': 'aarch64-apple-darwin', 'linux-x64': 'x86_64-unknown-linux-gnu',
+           'linux-arm64': 'aarch64-unknown-linux-gnu', 'win32-x64': 'x86_64-pc-windows-msvc'}
 
 def digest(path):
     h = hashlib.sha256()
@@ -29,6 +30,7 @@ def package(binary, platform, version, source_commit, out, source_root=ROOT):
         valid = False
         if platform == 'darwin-arm64': valid = header[:4] == b'\xcf\xfa\xed\xfe' and len(header) >= 8 and struct.unpack_from('<I', header, 4)[0] == 0x100000c
         if platform == 'linux-x64': valid = header[:6] == b'\x7fELF\x02\x01' and len(header) >= 20 and struct.unpack_from('<H', header, 18)[0] == 62
+        if platform == 'linux-arm64': valid = header[:6] == b'\x7fELF\x02\x01' and len(header) >= 20 and struct.unpack_from('<H', header, 18)[0] == 183
         if platform == 'win32-x64' and len(header) >= 64 and header[:2] == b'MZ':
             stream.seek(struct.unpack_from('<I', header, 60)[0]); valid = stream.read(6) == b'PE\0\0\x64\x86'
         if not valid: raise ValueError('binary architecture mismatch')

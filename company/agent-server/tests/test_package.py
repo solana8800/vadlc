@@ -14,6 +14,7 @@ class Contract(unittest.TestCase):
     def test_flat_archives_for_all_platforms(self):
         headers = {'darwin-arm64': b'\xcf\xfa\xed\xfe' + struct.pack('<I',0x100000c) + b'\0'*56,
                    'linux-x64': b'\x7fELF\x02\x01' + b'\0'*12 + struct.pack('<H',62) + b'\0'*44,
+                   'linux-arm64': b'\x7fELF\x02\x01' + b'\0'*12 + struct.pack('<H',183) + b'\0'*44,
                    'win32-x64': b'MZ' + b'\0'*58 + struct.pack('<I',64) + b'PE\0\0\x64\x86'}
         with tempfile.TemporaryDirectory() as d:
             root = pathlib.Path(d); (root/'LICENSE').write_text('license'); (root/'NOTICE').write_text('notice')
@@ -39,3 +40,9 @@ class Contract(unittest.TestCase):
             for version in ['../escape','bad version','0.2.33']:
                 with self.assertRaises(ValueError):p.package(binary,'linux-x64',version,'a'*40,root/'out',root)
             self.assertFalse((root/'out').exists())
+    def test_linux_arm64_rejects_an_x64_binary(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=pathlib.Path(d); (root/'LICENSE').write_text('license'); (root/'NOTICE').write_text('notice')
+            binary=root/'binary'; binary.write_bytes(b'\x7fELF\x02\x01' + b'\0'*12 + struct.pack('<H',62) + b'\0'*44)
+            with self.assertRaises(ValueError): p.package(binary,'linux-arm64','0.2.33','a'*40,root/'out',root)
+
