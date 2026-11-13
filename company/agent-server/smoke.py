@@ -12,6 +12,7 @@ import threading
 import platform
 if sys.platform == 'darwin' and platform.machine() == 'arm64': target, name = 'aarch64-apple-darwin', 'v-adlc-agent-server'
 elif sys.platform == 'linux' and platform.machine() == 'x86_64': target, name = 'x86_64-unknown-linux-gnu', 'v-adlc-agent-server'
+elif sys.platform == 'linux' and platform.machine() == 'aarch64': target, name = 'aarch64-unknown-linux-gnu', 'v-adlc-agent-server'
 elif sys.platform == 'win32' and platform.machine().lower() in {'amd64', 'x86_64'}: target, name = 'x86_64-pc-windows-msvc', 'v-adlc-agent-server.exe'
 else: raise RuntimeError('unsupported native smoke platform')
 root = pathlib.Path(__file__).resolve().parents[2] / 'codex-rs' / 'target'
